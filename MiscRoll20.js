@@ -105,11 +105,38 @@ const MiscScripts = (function () {
     });
   }
 
+  function dancingDragonScript(message) {
+    const stance = message.content.split(" ")[1].replace("-", " ");
+    const token = getObj("graphic", message.selected[0]._id);
+
+    if (token.get("tooltip").includes(stance)) {
+      sendChat("", `/em ${token.get("name")} remains in the ${stance}!`);
+      return;
+    }
+
+    ConditionTracker.updateConditionInstances(
+      "remove",
+      "high stance, power stance, low stance",
+      [token]
+    );
+
+    if (stance.toLowerCase() !== "off") {
+      ConditionTracker.updateConditionInstances("add", stance, [token]);
+      sendChat("", `/em ${token.get("name")} takes the ${stance}!`);
+    } else {
+      sendChat("", `/em ${token.get("name")} has exited the Dancing Dragon!`);
+    }
+  }
+
   function registerEventHandlers() {
     on("chat:message", (message) => {
       if (message.type === "api") {
         if (/^!light/i.test(message.content) && message.selected) {
           lightScript(message);
+        }
+
+        if (/^!dancingdragon/i.test(message.content) && message.selected) {
+          dancingDragonScript(message);
         }
 
         if (playerIsGM(message.playerid)) {
@@ -137,6 +164,5 @@ const MiscScripts = (function () {
 on("ready", () => {
   "use strict";
 
-  MiscScripts.checkInstall();
   MiscScripts.registerEventHandlers();
 });
