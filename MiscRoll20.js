@@ -22,6 +22,74 @@ const MiscScripts = (function () {
     );
   }
 
+  function getMacroByName(macroName) {
+    return findObjs(
+      { _type: "macro", name: macroName },
+      { caseInsensitive: true }
+    );
+  }
+
+  const MACROS = [
+    {
+      name: "Initiative-Passes",
+      action: "!initPasses",
+      gmOnly: true,
+      istokenaction: false,
+    },
+    {
+      name: "Mass-HP",
+      action:
+        '!masshp ?{Change HP by - must be an integer or "-" followed by an integer, e.g. -5} ?{HP bar|Bar 1,bar1|Bar 2,bar2|Bar 3,bar3}',
+      gmOnly: true,
+      istokenaction: false,
+    },
+    {
+      name: "Light-Custom",
+      action:
+        "!light ?{Distance of bright light - enter 0 to turn off bright light|0} ?{Distance of dim light - enter 0 to turn off dim light|0} ?{Direction of light - enter 0 to turn off directional light|0}",
+      gmOnly: false,
+      istokenaction: true,
+    },
+    {
+      name: "Light-Item",
+      action:
+        "!light ?{Light source|Turn off,0 0|Candle,5 5|Lamp,15 30|Lantern (Bullseye),60 60 90|Lantern (Hooded),30 30|Torch,20 20}",
+      gmOnly: false,
+      istokenaction: true,
+    },
+    {
+      name: "Dancing-Dragon",
+      action:
+        "!dancingdragon ?{Stance to assume|High Stance,High-Stance|Low Stance,Low-Stance|Power Stance,Power-Stance|Off}",
+      gmOnly: false,
+      istokenaction: true,
+    },
+  ];
+
+  function createMiscMacros() {
+    _.each(MACROS, (macro) => {
+      const currentMacro = getMacroByName(macro.name);
+      const gmPlayers = _.filter(
+        findObjs({
+          _type: "player",
+        }),
+        (player) => playerIsGM(player.get("_id"))
+      );
+
+      if (!currentMacro.length) {
+        const { name, action, gmOnly, istokenaction } = macro;
+
+        createObj("macro", {
+          _playerid: gmPlayers[0].get("_id"),
+          name,
+          action,
+          visibleto: gmOnly ? _.pluck(gmPlayers, "id").join(",") : "all",
+          istokenaction,
+        });
+      }
+    });
+  }
+
   function initiativePassScript() {
     const currentTurnorder =
       Campaign().get("turnorder") === ""
@@ -59,9 +127,11 @@ const MiscScripts = (function () {
     const calculateDistance = (distance) =>
       isNaN(parseInt(distance)) ? 10 : parseInt(distance);
 
-    let [, brightDistance, dimDistance] = message.content.split(" ");
+    let [, brightDistance, dimDistance, lightDirection] =
+      message.content.split(" ");
     brightDistance = calculateDistance(brightDistance);
     dimDistance = calculateDistance(dimDistance);
+    lightDirection = parseInt(lightDirection);
 
     _.each(message.selected, (selected) => {
       const token = getObj("graphic", selected._id);
@@ -85,6 +155,20 @@ const MiscScripts = (function () {
       } else {
         token.set({
           emits_low_light: false,
+        });
+      }
+
+      if (lightDirection && lightDirection > 0) {
+        token.set({
+          has_directional_bright_light: true,
+          directional_bright_light_total: lightDirection,
+          has_directional_dim_light: true,
+          directional_dim_light_total: lightDirection,
+        });
+      } else {
+        token.set({
+          has_directional_bright_light: false,
+          has_directional_dim_light: false,
         });
       }
     });
@@ -141,7 +225,7 @@ const MiscScripts = (function () {
 
         if (playerIsGM(message.playerid)) {
           const selectedTokens = message.selected;
-          if (/^!massHP/i.test(message.content) && selectedTokens.length) {
+          if (/^!masshp/i.test(message.content) && selectedTokens.length) {
             massHitpointsScript(message);
           }
           if (/^!initPasses/i.test(message.content)) {
@@ -157,6 +241,7 @@ const MiscScripts = (function () {
   }
 
   return {
+    createMiscMacros,
     registerEventHandlers,
   };
 })();
@@ -164,5 +249,6 @@ const MiscScripts = (function () {
 on("ready", () => {
   "use strict";
 
+  MiscScripts.createMiscMacros();
   MiscScripts.registerEventHandlers();
 });
