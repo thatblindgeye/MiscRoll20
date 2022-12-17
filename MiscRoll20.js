@@ -22,49 +22,120 @@ const MiscScripts = (function () {
     );
   }
 
-  function getMacroByName(macroName) {
-    return findObjs(
-      { _type: "macro", name: macroName },
-      { caseInsensitive: true }
-    );
-  }
+  const HEX_VALUES = {
+    Black: "#000000",
+    Blue: "#0000ff",
+    "Bright orange": "#e69138",
+    "Bright yellow": "#f1c232",
+    Brown: "#783f04",
+    Cyan: "#00ffff",
+    "Dark blue": "#1c4587",
+    "Darkest blue": "#20124d",
+    "Dark cyan": "#45818e",
+    "Dark gray": "#666666",
+    "Darkest gray": "#434343",
+    "Dark green": "#6aa84f",
+    "Dark pink": "#a64d79",
+    "Dark red": "#980000",
+    "Dark violet": "#674ea7",
+    "Desaturated dark cyan": "#76a5af",
+    "Desaturated green": "#93c47d",
+    "Desaturated pink": "#c27ba0",
+    "Desaturated violet": "#8e7cc3",
+    Gray: "#c0c0c0",
+    "Grayish cyan": "#a2c4c9",
+    "Grayish green": "#b6d7a8",
+    "Grayish pink": "#d5a6bd",
+    "Grayish violet": "#b4a7d6",
+    "Light gray": "#d9d9d9",
+    "Light grayish blue": "#c9daf8",
+    "Light grayish cyan": "#d0e0e3",
+    "Light grayish green": "#d9ead3",
+    "Light grayish orange": "#fce5cd",
+    "Light grayish pink": "#ead1dc",
+    "Light grayish red": "#f4cccc",
+    "Light grayish violet": "#d9d2e9",
+    "Light yellow": "#ffd966",
+    "Lime green": "#00ff00",
+    Magenta: "#ff00ff",
+    "Moderate blue": "#45818e",
+    Olive: "#7f6000",
+    Orange: "#ff9900",
+    Red: "#ff0000",
+    "Soft blue": "#4a86e8",
+    "Soft orange": "#f6b26b",
+    "Soft red": "#dd7e6b",
+    "Strong red": "#cc4125",
+    Transparent: "transparent",
+    "Very dark blue": "#073763",
+    "Very dark cyan": "#0c343d",
+    "Very dark green": "#274e13",
+    "Very dark red": "#5b0f00",
+    "Very light orange": "#ffe599",
+    "Very pale orange": "#fff2cc",
+    "Very soft blue": "#a4c2f4",
+    "Very soft orange": "#f9cb9c",
+    "Very soft red": "#ea9999",
+    Violet: "#9900ff",
+    White: "#ffffff",
+    Yellow: "#ffff00",
+  };
 
   const MACROS = [
     {
       name: "Initiative-Passes",
-      action: "!initPasses",
+      action: "!miscinitpasses",
       gmOnly: true,
       istokenaction: false,
     },
     {
       name: "Mass-HP",
       action:
-        '!masshp ?{Change HP by - must be an integer or "-" followed by an integer, e.g. -5} ?{HP bar|Bar 1,bar1|Bar 2,bar2|Bar 3,bar3}',
+        '!miscmasshp ?{Change HP by - must be an integer or "-" followed by an integer, e.g. -5} ?{HP bar|Bar 1,bar1|Bar 2,bar2|Bar 3,bar3}',
       gmOnly: true,
       istokenaction: false,
     },
     {
       name: "Light-Custom",
       action:
-        "!light ?{Distance of bright light - enter 0 to turn off bright light|0} ?{Distance of dim light - enter 0 to turn off dim light|0} ?{Direction of light - enter 0 to turn off directional light|0}",
+        "!misclight ?{Distance of bright light - enter 0 to turn off bright light|0} ?{Distance of dim light - enter 0 to turn off dim light|0} ?{Direction of light - enter 0 to turn off directional light|0}",
       gmOnly: false,
       istokenaction: true,
     },
     {
       name: "Light-Item",
       action:
-        "!light ?{Light source|Turn off,0 0|Candle,5 5|Lamp,15 30|Lantern (Bullseye),60 60 90|Lantern (Hooded),30 30|Torch,20 20}",
+        "!misclight ?{Light source|Turn off,0 0|Candle,5 5|Lamp,15 30|Lantern (Bullseye),60 60 90|Lantern (Hooded),30 30|Torch,20 20}",
       gmOnly: false,
       istokenaction: true,
     },
     {
       name: "Dancing-Dragon",
       action:
-        "!dancingdragon ?{Stance to assume|High Stance,High-Stance|Low Stance,Low-Stance|Power Stance,Power-Stance|Off}",
+        "!miscdancingdragon ?{Stance to assume|High Stance,High-Stance|Low Stance,Low-Stance|Power Stance,Power-Stance|Off}",
       gmOnly: false,
       istokenaction: true,
     },
+    {
+      name: "Set-Aura",
+      action: `!miscaura ?{Aura to update|Aura 1,aura1|Aura 2,aura2} ?{Size of aura - leave blank to turn off} ?{Color of aura${createColorQuery()}} ?{Shape of aura|Circle,false|Square,true} ?{Aura is visible to players|True|False}`,
+      gmOnly: true,
+      istokenaction: false,
+    },
   ];
+
+  function createColorQuery() {
+    const colorKeys = _.keys(HEX_VALUES);
+
+    return _.map(colorKeys, (key) => `|${key},${HEX_VALUES[key]}`);
+  }
+
+  function getMacroByName(macroName) {
+    return findObjs(
+      { _type: "macro", name: macroName },
+      { caseInsensitive: true }
+    );
+  }
 
   function createMiscMacros() {
     _.each(MACROS, (macro) => {
@@ -212,28 +283,52 @@ const MiscScripts = (function () {
     }
   }
 
+  function auraScript(message) {
+    const [, aura, size, color, isSquare, isVisible] = message.content
+      .toLowerCase()
+      .split(" ");
+
+    _.each(message.selected, (selected) => {
+      const token = getObj("graphic", selected._id);
+
+      token.set({
+        [`${aura}_radius`]: size,
+        [`${aura}_color`]: color,
+        [`${aura}_square`]: isSquare === "true",
+        [`showplayers_${aura}`]: isVisible === "true",
+      });
+    });
+  }
+
   function registerEventHandlers() {
     on("chat:message", (message) => {
       if (message.type === "api") {
-        if (/^!light/i.test(message.content) && message.selected) {
+        if (/^!misclight/i.test(message.content) && message.selected) {
           lightScript(message);
         }
 
-        if (/^!dancingdragon/i.test(message.content) && message.selected) {
+        if (/^!miscdancingdragon/i.test(message.content) && message.selected) {
           dancingDragonScript(message);
         }
 
         if (playerIsGM(message.playerid)) {
           const selectedTokens = message.selected;
-          if (/^!masshp/i.test(message.content) && selectedTokens.length) {
+          if (/^!miscmasshp/i.test(message.content) && selectedTokens.length) {
             massHitpointsScript(message);
           }
-          if (/^!initPasses/i.test(message.content)) {
+          if (/^!miscinitpasses/i.test(message.content)) {
             initiativePassScript();
           }
 
-          if (/^!getimgsrc/i.test(message.content) && selectedTokens.length) {
+          if (
+            /^!miscgetimgsrc/i.test(message.content) &&
+            selectedTokens.length
+          ) {
             getImgsrcScript(selectedTokens);
+          }
+
+          if (/^!miscaura/i.test(message.content) && selectedTokens.length) {
+            auraScript(message);
           }
         }
       }
