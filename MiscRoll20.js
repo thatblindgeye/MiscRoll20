@@ -3,23 +3,27 @@ const MiscScripts = (function () {
 
   const MISC_DISPLAY_NAME = "Misc Scripts";
 
-  function getCleanImgsrc(imgsrc) {
-    const parts = imgsrc.match(
-      /(.*\/images\/.*)(thumb|med|original|max)([^\?]*)(\?[^?]+)?$/
-    );
-
-    if (parts) {
-      return (
-        parts[1] +
-        "thumb" +
-        parts[3] +
-        (parts[4] ? parts[4] : `?${Math.round(Math.random() * 9999999)}`)
+  function getCleanImgsrc(selectedItems) {
+    _.each(selectedItems, (selected) => {
+      const token = getObj("graphic", selected._id);
+      const imgsrc = token.get("imgsrc");
+      const parts = imgsrc.match(
+        /(.*\/images\/.*)(thumb|med|original|max)([^\?]*)(\?[^?]+)?$/
       );
-    }
 
-    throw new Error(
-      `The selected token does not have a valid image source. A token's image cannot be the default image, and the selected token cannot be one that was purchased on the Roll20 marketplace.`
-    );
+      if (parts) {
+        return (
+          parts[1] +
+          "thumb" +
+          parts[3] +
+          (parts[4] ? parts[4] : `?${Math.round(Math.random() * 9999999)}`)
+        );
+      }
+
+      throw new Error(
+        `The selected token does not have a valid image source. A token's image cannot be the default image, and the selected token cannot be one that was purchased on the Roll20 marketplace.`
+      );
+    });
   }
 
   const HEX_VALUES = {
@@ -83,6 +87,12 @@ const MiscScripts = (function () {
 
   const MACROS = [
     {
+      name: "Get-Clean-Imgsrc",
+      action: "!getcleanimgsrc",
+      gmOnly: true,
+      istokenaction: false,
+    },
+    {
       name: "Initiative-Passes",
       action: "!miscinitpasses",
       gmOnly: true,
@@ -118,7 +128,13 @@ const MiscScripts = (function () {
     },
     {
       name: "Set-Aura",
-      action: `!miscaura ?{Aura to update|Aura 1,aura1|Aura 2,aura2} ?{Size of aura - leave blank to turn off} ?{Color of aura${createColorQuery()}} ?{Shape of aura|Circle,false|Square,true} ?{Aura is visible to players|True|False}`,
+      action: `!miscsetaura ?{Aura to update|Aura 1,aura1|Aura 2,aura2} ?{Size of aura - leave blank to turn off} ?{Color of aura${createColorQuery()}} ?{Shape of aura|Circle,false|Square,true} ?{Aura is visible to players|True|False}`,
+      gmOnly: true,
+      istokenaction: false,
+    },
+    {
+      name: "Set-Daylight",
+      action: "!miscsetdaylight ?{Opacity}",
       gmOnly: true,
       istokenaction: false,
     },
@@ -283,7 +299,7 @@ const MiscScripts = (function () {
     }
   }
 
-  function auraScript(message) {
+  function setAuraScript(message) {
     const [, aura, size, color, isSquare, isVisible] = message.content
       .toLowerCase()
       .split(" ");
@@ -292,12 +308,29 @@ const MiscScripts = (function () {
       const token = getObj("graphic", selected._id);
 
       token.set({
-        [`${aura}_radius`]: size,
+        [`${aura}_radius`]: size > 0 ? size : "",
         [`${aura}_color`]: color,
         [`${aura}_square`]: isSquare === "true",
         [`showplayers_${aura}`]: isVisible === "true",
       });
     });
+  }
+
+  function setDaylightScript(message) {
+    const page = getObj("page", Campaign().get("playerpageid"));
+
+    if (!page.get("dynamic_lighting_enabled")) {
+      page.set("dynamic_lighting_enabled", true);
+    }
+
+    if (!page.get("daylight_mode_enabled")) {
+      page.set("daylight_mode_enabled", true);
+    }
+
+    const lightOpacity = parseFloat(message.content.split(" ")[1] || "1");
+
+    page.set("daylightModeOpacity", lightOpacity);
+    page.set("force_lighting_refresh", true);
   }
 
   function registerEventHandlers() {
@@ -313,6 +346,13 @@ const MiscScripts = (function () {
 
         if (playerIsGM(message.playerid)) {
           const selectedTokens = message.selected;
+          if (
+            /^!getcleanimgsrc/i.test(message.content) &&
+            selectedTokens.length
+          ) {
+            getCleanImgsrc(selectedTokens);
+          }
+
           if (/^!miscmasshp/i.test(message.content) && selectedTokens.length) {
             massHitpointsScript(message);
           }
@@ -327,8 +367,12 @@ const MiscScripts = (function () {
             getImgsrcScript(selectedTokens);
           }
 
-          if (/^!miscaura/i.test(message.content) && selectedTokens.length) {
-            auraScript(message);
+          if (/^!miscsetaura/i.test(message.content) && selectedTokens.length) {
+            setAuraScript(message);
+          }
+
+          if (/^!miscsetdaylight/i.test(message.content)) {
+            setDaylightScript(message);
           }
         }
       }
