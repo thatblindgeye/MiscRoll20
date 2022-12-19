@@ -26,63 +26,82 @@ const MiscScripts = (function () {
     });
   }
 
-  const HEX_VALUES = {
+  const HEX_COLORS = {
     Black: "#000000",
     Blue: "#0000ff",
-    "Bright orange": "#e69138",
-    "Bright yellow": "#f1c232",
-    Brown: "#783f04",
+    "--Blue (dark)": "#0000cc",
+    "--Blue (darker)": "#000099",
+    "--Blue (darkest)": "#000066",
+    "--Blue (light)": "#3333ff",
+    "--Blue (lighter)": "#6666ff",
+    "--Blue (lightest)": "#9999ff",
+    Brown: "#a52a2a",
+    "--Brown (dark)": "#7e2020",
+    "--Brown (darker)": "#551616",
+    "--Brown (darkest)": "#2d0c0c",
+    "--Brown (light)": "#ce4040",
+    "--Brown (lighter)": "#da7171",
+    "--Brown (lightest)": "#ebb2b2",
     Cyan: "#00ffff",
-    "Dark blue": "#1c4587",
-    "Darkest blue": "#20124d",
-    "Dark cyan": "#45818e",
-    "Dark gray": "#666666",
-    "Darkest gray": "#434343",
-    "Dark green": "#6aa84f",
-    "Dark pink": "#a64d79",
-    "Dark red": "#980000",
-    "Dark violet": "#674ea7",
-    "Desaturated dark cyan": "#76a5af",
-    "Desaturated green": "#93c47d",
-    "Desaturated pink": "#c27ba0",
-    "Desaturated violet": "#8e7cc3",
-    Gray: "#c0c0c0",
-    "Grayish cyan": "#a2c4c9",
-    "Grayish green": "#b6d7a8",
-    "Grayish pink": "#d5a6bd",
-    "Grayish violet": "#b4a7d6",
-    "Light gray": "#d9d9d9",
-    "Light grayish blue": "#c9daf8",
-    "Light grayish cyan": "#d0e0e3",
-    "Light grayish green": "#d9ead3",
-    "Light grayish orange": "#fce5cd",
-    "Light grayish pink": "#ead1dc",
-    "Light grayish red": "#f4cccc",
-    "Light grayish violet": "#d9d2e9",
-    "Light yellow": "#ffd966",
-    "Lime green": "#00ff00",
+    "--Cyan (dark)": "#00cccc",
+    "--Cyan (darker)": "#009999",
+    "--Cyan (darkest)": "#006666",
+    "--Cyan (light)": "#33ffff",
+    "--Cyan (lighter)": "#66ffff",
+    "--Cyan (lightest)": "#99ffff",
+    Gray: "#808080",
+    "--Gray (dark)": "#666666",
+    "--Gray (darker)": "#4d4d4d",
+    "--Gray (darkest)": "#333333",
+    "--Gray (light)": "#999999",
+    "--Gray (lighter)": "#b3b3b3",
+    "--Gray (lightest)": "#cccccc",
+    Green: "#008000",
+    "--Green (dark)": "#006600",
+    "--Green (darker)": "#004d00",
+    "--Green (darkest)": "#003300",
+    "--Green (light)": "#00cc00",
+    "--Green (lighter)": "#33ff33",
+    "--Green (lightest)": "#99ff99",
     Magenta: "#ff00ff",
-    "Moderate blue": "#45818e",
-    Olive: "#7f6000",
-    Orange: "#ff9900",
+    "--Magenta (dark)": "#cc00cc",
+    "--Magenta (darker)": "#990099",
+    "--Magenta (darkest)": "#660066",
+    "--Magenta (light)": "#ff33ff",
+    "--Magenta (lighter)": "#ff66ff",
+    "--Magenta (lightest)": "#ff99ff",
+    Orange: "#ffa500",
+    "--Orange (dark)": "#cc8500",
+    "--Orange (darker)": "#996300",
+    "--Orange (darkest)": "#664200",
+    "--Orange (light)": "#ffb833",
+    "--Orange (lighter)": "#ffc966",
+    "--Orange (lightest)": "#ffdb99",
+    Pink: "#ffc0cb",
+    Purple: "#800080",
     Red: "#ff0000",
-    "Soft blue": "#4a86e8",
-    "Soft orange": "#f6b26b",
-    "Soft red": "#dd7e6b",
-    "Strong red": "#cc4125",
+    "--Red (dark)": "#cc0000",
+    "--Red (darker)": "#990000",
+    "--Red (darkest)": "#660000",
+    "--Red (light)": "#ff3333",
+    "--Red (lighter)": "#ff6666",
+    "--Red (lightest)": "#ff9999",
     Transparent: "transparent",
-    "Very dark blue": "#073763",
-    "Very dark cyan": "#0c343d",
-    "Very dark green": "#274e13",
-    "Very dark red": "#5b0f00",
-    "Very light orange": "#ffe599",
-    "Very pale orange": "#fff2cc",
-    "Very soft blue": "#a4c2f4",
-    "Very soft orange": "#f9cb9c",
-    "Very soft red": "#ea9999",
-    Violet: "#9900ff",
+    Violet: "#ee82ee",
+    "--Violet (dark)": "#e228e2",
+    "--Violet (darker)": "#901490",
+    "--Violet (darkest)": "#360736",
+    "--Violet (light)": "#f3a5f3",
+    "--Violet (lighter)": "#f8c9f8",
+    "--Violet (lightest)": "#fdedfd",
     White: "#ffffff",
     Yellow: "#ffff00",
+    "--Yellow (dark)": "#cccc00",
+    "--Yellow (darker)": "#999900",
+    "--Yellow (darkest)": "#666600",
+    "--Yellow (light)": "#ffff33",
+    "--Yellow (lighter)": "#ffff66",
+    "--Yellow (lightest)": "#ffff99",
   };
 
   const MACROS = [
@@ -141,9 +160,9 @@ const MiscScripts = (function () {
   ];
 
   function createColorQuery() {
-    const colorKeys = _.keys(HEX_VALUES);
+    const colorKeys = _.keys(HEX_COLORS);
 
-    return _.map(colorKeys, (key) => `|${key},${HEX_VALUES[key]}`);
+    return _.map(colorKeys, (key) => `|${key},${HEX_COLORS[key]}`);
   }
 
   function getMacroByName(macroName) {
@@ -211,53 +230,28 @@ const MiscScripts = (function () {
   }
 
   function lightScript(message) {
-    const calculateDistance = (distance) =>
-      isNaN(parseInt(distance)) ? 10 : parseInt(distance);
+    const calculateDistance = (distance, defaultDistance = 10) =>
+      isNaN(parseInt(distance)) ? defaultDistance : parseInt(distance);
 
     let [, brightDistance, dimDistance, lightDirection] =
       message.content.split(" ");
     brightDistance = calculateDistance(brightDistance);
     dimDistance = calculateDistance(dimDistance);
-    lightDirection = parseInt(lightDirection);
+    lightDirection = calculateDistance(lightDirection, 360);
 
     _.each(message.selected, (selected) => {
       const token = getObj("graphic", selected._id);
 
-      if (brightDistance > 0) {
-        token.set({
-          emits_bright_light: true,
-          bright_light_distance: brightDistance,
-        });
-      } else {
-        token.set({
-          emits_bright_light: false,
-        });
-      }
-
-      if (dimDistance > 0) {
-        token.set({
-          emits_low_light: true,
-          low_light_distance: brightDistance + dimDistance,
-        });
-      } else {
-        token.set({
-          emits_low_light: false,
-        });
-      }
-
-      if (lightDirection && lightDirection > 0) {
-        token.set({
-          has_directional_bright_light: true,
-          directional_bright_light_total: lightDirection,
-          has_directional_dim_light: true,
-          directional_dim_light_total: lightDirection,
-        });
-      } else {
-        token.set({
-          has_directional_bright_light: false,
-          has_directional_dim_light: false,
-        });
-      }
+      token.set({
+        emits_bright_light: brightDistance > 0,
+        bright_light_distance: brightDistance,
+        emits_low_light: dimDistance > 0,
+        low_light_distance: brightDistance + dimDistance,
+        has_directional_bright_light: lightDirection > 0,
+        directional_bright_light_total: lightDirection,
+        has_directional_dim_light: lightDirection > 0,
+        directional_dim_light_total: lightDirection,
+      });
     });
   }
 
