@@ -3,27 +3,27 @@ const MiscScripts = (function () {
 
   const MISC_DISPLAY_NAME = "Misc Scripts";
 
-  function getCleanImgsrc(selectedItems) {
-    _.each(selectedItems, (selected) => {
-      const token = getObj("graphic", selected._id);
-      const imgsrc = token.get("imgsrc");
-      const parts = imgsrc.match(
-        /(.*\/images\/.*)(thumb|med|original|max)([^\?]*)(\?[^?]+)?$/
-      );
+  function getCleanImgsrc(token) {
+    const imgsrc = token.get("imgsrc");
+    const parts = imgsrc.match(
+      /(.*\/images\/.*)(thumb|med|original|max)([^\?]*)(\?[^?]+)?$/
+    );
 
-      if (parts) {
-        return (
-          parts[1] +
-          "thumb" +
-          parts[3] +
-          (parts[4] ? parts[4] : `?${Math.round(Math.random() * 9999999)}`)
-        );
-      }
+    if (parts) {
+      const imgURL =
+        parts[1] +
+        "thumb" +
+        parts[3] +
+        (parts[4] ? parts[4] : `?${Math.round(Math.random() * 9999999)}`);
 
-      throw new Error(
-        `The selected token does not have a valid image source. A token's image cannot be the default image, and the selected token cannot be one that was purchased on the Roll20 marketplace.`
-      );
-    });
+      return `<div style="padding: 8px; border: 1px solid gray; border-radius: 25px;"><img src="${imgURL}" alt="${token.get(
+        "name"
+      )} token"/><div><code>${imgURL}</code></div></div>`;
+    }
+
+    throw new Error(
+      `The selected token does not have a valid image source. A token's image cannot be the default image, and the selected token cannot be one that was purchased on the Roll20 marketplace.`
+    );
   }
 
   const HEX_COLORS = {
@@ -344,7 +344,10 @@ const MiscScripts = (function () {
             /^!getcleanimgsrc/i.test(message.content) &&
             selectedTokens.length
           ) {
-            getCleanImgsrc(selectedTokens);
+            _.each(selectedTokens, (selected) => {
+              const token = getObj("graphic", selected._id);
+              sendChat(MISC_DISPLAY_NAME, `/w gm ${getCleanImgsrc(token)}`);
+            });
           }
 
           if (/^!miscmasshp/i.test(message.content) && selectedTokens.length) {
