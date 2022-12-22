@@ -160,7 +160,7 @@ const MiscScripts = (function () {
     {
       name: "Set-Elevation",
       action:
-        "!miscelevation ?{Elevation type|Off|Depth|Height} ?{Elevation amount (leave blank if turning off) - must be in increments of 5 up to 100, or increments of 50 between 100 and 300}",
+        "!miscelevation ?{Elevation type|Off|Depth|Height} ?{Elevation amount (leave blank if turning off)} ?{Elevation viewable by|All players|GM}",
       gmOnly: true,
       istokenaction: true,
     },
@@ -336,10 +336,10 @@ const MiscScripts = (function () {
     page.set("force_lighting_refresh", true);
   }
 
-  function elevationScript(message) {
-    const [, elevationType, amount] = message.content.split(" ");
+  function setElevationScript(message) {
+    const [, elevationType, amount, viewableBy] = message.content.split(" ");
 
-    if (elevationType === "Off") {
+    if (elevationType === "Off" || !amount) {
       _.each(message.selected, (selected) => {
         const token = getObj("graphic", selected._id);
         const tokenMarkers = token.get("statusmarkers").split(/\s*,\s*/g);
@@ -354,29 +354,34 @@ const MiscScripts = (function () {
     }
 
     const elevationMarkers = JSON.parse(Campaign().get("token_markers"));
+    const gmOnly = viewableBy === "GM";
     let markerToApply = _.findWhere(elevationMarkers, {
       name: `${elevationType} ${amount}`,
     });
+    let elevationMessage = `has ${
+      elevationType === "Height" ? "ascended" : "descended"
+    } by ${amount} feet!`;
 
-    if (!markerToApply) {
+    if (!markerToApply || gmOnly) {
       markerToApply = _.findWhere(elevationMarkers, {
         name: `${elevationType} Unknown`,
       });
-
-      sendChat(
-        MISC_DISPLAY_NAME,
-        `/w gm No token marker exists for a ${elevationType.toLowerCase()} of ${amount}. The "unknown" marker has been applied instead.`,
-        null,
-        { noarchive: true }
-      );
     }
 
     _.each(message.selected, (selected) => {
       const token = getObj("graphic", selected._id);
-      const tokenMarkers = token.get("statusmarkers").split(/\s*,\s*/g);
+      const tokenMarkers = _.filter(
+        token.get("statusmarkers").split(/\s*,\s*/g),
+        (marker) => !/^(depth|height)_\d*/i.test(marker)
+      );
       tokenMarkers.push(markerToApply.tag);
 
       token.set("statusmarkers", tokenMarkers.join(","));
+
+      sendChat(
+        gmOnly ? MISC_DISPLAY_NAME : "",
+        `${gmOnly ? "/w gm" : "/em"} ${token.get("name")} ${elevationMessage}`
+      );
     });
   }
 
@@ -421,7 +426,7 @@ const MiscScripts = (function () {
           }
 
           if (/^!miscelevation/i.test(content)) {
-            elevationScript(message);
+            setElevationScript(message);
           }
         }
       }
