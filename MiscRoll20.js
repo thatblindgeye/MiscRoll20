@@ -157,6 +157,13 @@ const MiscScripts = (function () {
       gmOnly: true,
       istokenaction: false,
     },
+    {
+      name: "Set-Elevation",
+      action:
+        "!miscelevation ?{Elevation type|Off|Depth|Height} ?{Elevation amount (leave blank if turning off) - must be in increments of 5 up to 100, or increments of 50 between 100 and 300}",
+      gmOnly: true,
+      istokenaction: true,
+    },
   ];
 
   function createColorQuery() {
@@ -182,7 +189,9 @@ const MiscScripts = (function () {
         (player) => playerIsGM(player.get("_id"))
       );
 
-      if (!currentMacro.length) {
+      if (currentMacro.length) {
+        currentMacro[0].set({ action: macro.action });
+      } else {
         const { name, action, gmOnly, istokenaction } = macro;
 
         createObj("macro", {
@@ -327,49 +336,92 @@ const MiscScripts = (function () {
     page.set("force_lighting_refresh", true);
   }
 
+  function elevationScript(message) {
+    const [, elevationType, amount] = message.content.split(" ");
+
+    if (elevationType === "Off") {
+      _.each(message.selected, (selected) => {
+        const token = getObj("graphic", selected._id);
+        const tokenMarkers = token.get("statusmarkers").split(/\s*,\s*/g);
+        const markersWithoutElevation = _.filter(
+          tokenMarkers,
+          (marker) => !/^(depth|height)_\d*/i.test(marker)
+        );
+
+        token.set("statusmarkers", markersWithoutElevation.join(","));
+      });
+      return;
+    }
+
+    const elevationMarkers = JSON.parse(Campaign().get("token_markers"));
+    let markerToApply = _.findWhere(elevationMarkers, {
+      name: `${elevationType} ${amount}`,
+    });
+
+    if (!markerToApply) {
+      markerToApply = _.findWhere(elevationMarkers, {
+        name: `${elevationType} Unknown`,
+      });
+
+      sendChat(
+        MISC_DISPLAY_NAME,
+        `/w gm No token marker exists for a ${elevationType.toLowerCase()} of ${amount}. The "unknown" marker has been applied instead.`,
+        null,
+        { noarchive: true }
+      );
+    }
+
+    _.each(message.selected, (selected) => {
+      const token = getObj("graphic", selected._id);
+      const tokenMarkers = token.get("statusmarkers").split(/\s*,\s*/g);
+      tokenMarkers.push(markerToApply.tag);
+
+      token.set("statusmarkers", tokenMarkers.join(","));
+    });
+  }
+
   function registerEventHandlers() {
     on("chat:message", (message) => {
+      const { content, selected } = message;
+
       if (message.type === "api") {
-        if (/^!misclight/i.test(message.content) && message.selected) {
+        if (/^!misclight/i.test(content) && selected) {
           lightScript(message);
         }
 
-        if (/^!miscdancingdragon/i.test(message.content) && message.selected) {
+        if (/^!miscdancingdragon/i.test(content) && selected) {
           dancingDragonScript(message);
         }
 
         if (playerIsGM(message.playerid)) {
-          const selectedTokens = message.selected;
-          if (
-            /^!getcleanimgsrc/i.test(message.content) &&
-            selectedTokens.length
-          ) {
-            _.each(selectedTokens, (selected) => {
-              const token = getObj("graphic", selected._id);
+          if (/^!getcleanimgsrc/i.test(content) && selected.length) {
+            _.each(selected, (selectedItem) => {
+              const token = getObj("graphic", selectedItem._id);
               sendChat(MISC_DISPLAY_NAME, `/w gm ${getCleanImgsrc(token)}`);
             });
           }
 
-          if (/^!miscmasshp/i.test(message.content) && selectedTokens.length) {
+          if (/^!miscmasshp/i.test(content) && selected.length) {
             massHitpointsScript(message);
           }
-          if (/^!miscinitpasses/i.test(message.content)) {
+          if (/^!miscinitpasses/i.test(content)) {
             initiativePassScript();
           }
 
-          if (
-            /^!miscgetimgsrc/i.test(message.content) &&
-            selectedTokens.length
-          ) {
-            getImgsrcScript(selectedTokens);
+          if (/^!miscgetimgsrc/i.test(content) && selected.length) {
+            getImgsrcScript(selected);
           }
 
-          if (/^!miscsetaura/i.test(message.content) && selectedTokens.length) {
+          if (/^!miscsetaura/i.test(content) && selected.length) {
             setAuraScript(message);
           }
 
-          if (/^!miscsetdaylight/i.test(message.content)) {
+          if (/^!miscsetdaylight/i.test(content)) {
             setDaylightScript(message);
+          }
+
+          if (/^!miscelevation/i.test(content)) {
+            elevationScript(message);
           }
         }
       }
