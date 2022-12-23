@@ -160,7 +160,7 @@ const MiscScripts = (function () {
     {
       name: "Set-Elevation",
       action:
-        "!miscelevation ?{Elevation type|Off|Depth|Height} ?{Elevation amount (leave blank if turning off)} ?{Elevation viewable by|All players|GM}",
+        "!miscelevation ?{Elevation type|Off|Depth|Height} ?{Elevation amount - must be increments of 5, with a max of 300 for height and 185 for depth} ?{Elevation viewable by|All players|GM}",
       gmOnly: true,
       istokenaction: true,
     },
@@ -355,14 +355,16 @@ const MiscScripts = (function () {
 
     const elevationMarkers = JSON.parse(Campaign().get("token_markers"));
     const gmOnly = viewableBy === "GM";
-    let markerToApply = _.findWhere(elevationMarkers, {
-      name: `${elevationType} ${amount}`,
-    });
-    let elevationMessage = `has ${
+    const elevationMessage = `has ${
       elevationType === "Height" ? "ascended" : "descended"
-    } by ${amount} feet!`;
+    } to ${amount} feet!`;
+    let markerToApply = gmOnly
+      ? ""
+      : _.findWhere(elevationMarkers, {
+          name: `${elevationType} ${amount}`,
+        });
 
-    if (!markerToApply || gmOnly) {
+    if (!markerToApply && !gmOnly) {
       markerToApply = _.findWhere(elevationMarkers, {
         name: `${elevationType} Unknown`,
       });
@@ -374,8 +376,10 @@ const MiscScripts = (function () {
         token.get("statusmarkers").split(/\s*,\s*/g),
         (marker) => !/^(depth|height)_\d*/i.test(marker)
       );
-      tokenMarkers.push(markerToApply.tag);
 
+      if (!gmOnly) {
+        tokenMarkers.push(markerToApply.tag);
+      }
       token.set("statusmarkers", tokenMarkers.join(","));
 
       sendChat(
