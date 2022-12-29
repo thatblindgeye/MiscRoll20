@@ -49,13 +49,15 @@ The macro that is created with this script creates a dropdown roll query for sel
 
 ### Light
 
-`!miscLight [bright light] [dim light] [light direction]`
+`!miscLight [bright light] [dim light] [light direction] [light color]`
 
-Causes the selected tokens to emit light with the specified distance and direction.
+Causes the selected tokens to emit light with the specified distances, direction, and color.
 
-Both the `bright light` and `dim light` arguments must be an integer. If 0 is passed as the distance, that level of light will be turned off for the tokens.
+Both the `bright light` and `dim light` arguments must be a number. If 0 is passed as the distance, that level of light will be turned off for the tokens.
 
-The `light direction` argument is optional. When not passed in, the light emitted by the selected tokens will extend in every direction (360 degrees). Passing in a value to this argument can allow cones of light, such as from a bullseye lantern.
+The `light direction` must be either a number between 0 and 360, or `off`. Passing in a value to this argument can create cones of light, such as from a bullseye lantern.
+
+The `light color` argument is optional, but must be a 6 character HEX color, e.g. `#ff0000`, or `transparent` when passed in.
 
 Two macros are created for this script, the "Light-Custom" and "Light-Item" macros. "Light-Custom" allows passing in your own custom values to each argument, while "Light-Item" offers a dropdown of various light sources that can be selected.
 

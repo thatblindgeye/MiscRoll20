@@ -126,15 +126,14 @@ const MiscScripts = (function () {
     },
     {
       name: "Light-Custom",
-      action:
-        "!misclight ?{Distance of bright light - enter 0 to turn off bright light|0} ?{Distance of dim light - enter 0 to turn off dim light|0} ?{Direction of light - enter 0 to turn off directional light|0}",
+      action: `!misclight ?{Distance of bright light - 0 to turn off bright light|0} ?{Distance of dim light - 0 to turn off dim light|0} ?{Direction of light - must be a number between 0 and 360 or "off"|off} ?{Color of light - select "Transparent" for default color${createColorQuery()}}`,
       gmOnly: false,
       istokenaction: true,
     },
     {
       name: "Light-Item",
       action:
-        "!misclight ?{Light source|Turn off,0 0|Candle,5 5|Lamp,15 30|Lantern (Bullseye),60 60 90|Lantern (Hooded),30 30|Torch,20 20}",
+        "!misclight ?{Light source|Turn off,0 0 off|Candle,5 5 off|Lamp,15 30 off|Lantern (Bullseye),60 60 90|Lantern (Hooded),30 30 off|Torch,20 20 off}",
       gmOnly: false,
       istokenaction: true,
     },
@@ -189,9 +188,7 @@ const MiscScripts = (function () {
         (player) => playerIsGM(player.get("_id"))
       );
 
-      if (currentMacro.length) {
-        currentMacro[0].set({ action: macro.action });
-      } else {
+      if (!currentMacro.length) {
         const { name, action, gmOnly, istokenaction } = macro;
 
         createObj("macro", {
@@ -239,28 +236,62 @@ const MiscScripts = (function () {
   }
 
   function lightScript(message) {
-    const calculateDistance = (distance, defaultDistance = 10) =>
-      isNaN(parseInt(distance)) ? defaultDistance : parseInt(distance);
+    const calculateDistance = (distance, defaultDistance) => {
+      const parsedDistance = parseFloat(distance);
 
-    let [, brightDistance, dimDistance, lightDirection] =
-      message.content.split(" ");
-    brightDistance = calculateDistance(brightDistance);
-    dimDistance = calculateDistance(dimDistance);
-    lightDirection = calculateDistance(lightDirection, 360);
+      return isNaN(parsedDistance) && defaultDistance
+        ? defaultDistance
+        : parsedDistance;
+    };
+
+    let [, brightDistance, dimDistance, lightDirection, lightColor] = _.map(
+      message.content.split(" "),
+      (lightArg, index) => {
+        if (index < 2) {
+          return calculateDistance(lightArg, 0);
+        } else if (index === 2) {
+          return calculateDistance(lightArg);
+        }
+
+        return lightArg;
+      }
+    );
+
+    const tokenLight = {};
+    if (brightDistance > 0) {
+      tokenLight.emits_bright_light = true;
+      tokenLight.bright_light_distance = brightDistance;
+    } else {
+      tokenLight.emits_bright_light = false;
+      tokenLight.has_directional_bright_light = false;
+    }
+
+    if (dimDistance > 0) {
+      tokenLight.emits_low_light = true;
+      tokenLight.low_light_distance = brightDistance + dimDistance;
+    } else {
+      tokenLight.emits_low_light = false;
+      tokenLight.has_directional_dim_light = false;
+    }
+
+    if (lightDirection >= 0 && lightDirection <= 360) {
+      tokenLight.has_directional_bright_light = brightDistance > 0;
+      tokenLight.directional_bright_light_total = lightDirection;
+      tokenLight.has_directional_dim_light = dimDistance > 0;
+      tokenLight.directional_dim_light_total = lightDirection;
+    } else {
+      tokenLight.has_directional_bright_light = false;
+      tokenLight.has_directional_dim_light = false;
+    }
+
+    if (lightColor) {
+      tokenLight.lightColor = lightColor;
+    }
 
     _.each(message.selected, (selected) => {
       const token = getObj("graphic", selected._id);
 
-      token.set({
-        emits_bright_light: brightDistance > 0,
-        bright_light_distance: brightDistance,
-        emits_low_light: dimDistance > 0,
-        low_light_distance: brightDistance + dimDistance,
-        has_directional_bright_light: lightDirection > 0,
-        directional_bright_light_total: lightDirection,
-        has_directional_dim_light: lightDirection > 0,
-        directional_dim_light_total: lightDirection,
-      });
+      token.set(tokenLight);
     });
   }
 
