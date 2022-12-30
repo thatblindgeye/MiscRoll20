@@ -126,14 +126,13 @@ const MiscScripts = (function () {
     },
     {
       name: "Light-Custom",
-      action: `!misclight ?{Distance of bright light - 0 to turn off bright light|0} ?{Distance of dim light - 0 to turn off dim light|0} ?{Direction of light - must be a number between 0 and 360 or "off"|off} ?{Color of light - select "Transparent" for default color${createColorQuery()}}`,
+      action: `!misclight ?{Distance of bright light - 0 to turn off bright light|0} ?{Distance of dim light - 0 to turn off dim light|0} ?{Angle of light - must be a number between 0 and 360 or "off"|off} ?{Color of light - select "Transparent" for default color${createColorQuery()}}`,
       gmOnly: false,
       istokenaction: true,
     },
     {
       name: "Light-Item",
-      action:
-        "!misclight ?{Light source|Turn off,0 0 off|Candle,5 5 off|Lamp,15 30 off|Lantern (Bullseye),60 60 90|Lantern (Hooded),30 30 off|Torch,20 20 off}",
+      action: `!misclight ?{Light source|Turn off,0 0 off|Candle,5 5 off|Dancing Lights (cantrip),0 10 off|Daylight (3rd level spell),60 60 off|Lamp,15 30 off|Lantern (Bullseye),60 60 90|Lantern (Hooded),30 30 off|Light (cantrip),20 20 off|Torch,20 20 off|Wall of Light (5th level spell),120 120 off} ?{Color of light - select "Transparent" for default color${createColorQuery()}}`,
       gmOnly: false,
       istokenaction: true,
     },
@@ -244,12 +243,12 @@ const MiscScripts = (function () {
         : parsedDistance;
     };
 
-    let [, brightDistance, dimDistance, lightDirection, lightColor] = _.map(
+    let [, brightDistance, dimDistance, lightAngle, lightColor] = _.map(
       message.content.split(" "),
       (lightArg, index) => {
-        if (index < 2) {
+        if (index === 1 || index === 2) {
           return calculateDistance(lightArg, 0);
-        } else if (index === 2) {
+        } else if (index === 3) {
           return calculateDistance(lightArg);
         }
 
@@ -274,11 +273,11 @@ const MiscScripts = (function () {
       tokenLight.has_directional_dim_light = false;
     }
 
-    if (lightDirection >= 0 && lightDirection <= 360) {
+    if (lightAngle >= 0 && lightAngle <= 360) {
       tokenLight.has_directional_bright_light = brightDistance > 0;
-      tokenLight.directional_bright_light_total = lightDirection;
+      tokenLight.directional_bright_light_total = lightAngle;
       tokenLight.has_directional_dim_light = dimDistance > 0;
-      tokenLight.directional_dim_light_total = lightDirection;
+      tokenLight.directional_dim_light_total = lightAngle;
     } else {
       tokenLight.has_directional_bright_light = false;
       tokenLight.has_directional_dim_light = false;
@@ -342,7 +341,7 @@ const MiscScripts = (function () {
       const token = getObj("graphic", selected._id);
 
       token.set({
-        [`${aura}_radius`]: size > 0 ? size : "",
+        [`${aura}_radius`]: size >= 0 ? size : "",
         [`${aura}_color`]: color,
         [`${aura}_square`]: isSquare === "true",
         [`showplayers_${aura}`]: isVisible === "true",

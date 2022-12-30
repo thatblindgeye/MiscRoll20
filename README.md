@@ -49,13 +49,13 @@ The macro that is created with this script creates a dropdown roll query for sel
 
 ### Light
 
-`!miscLight [bright light] [dim light] [light direction] [light color]`
+`!miscLight [bright light] [dim light] [light angle] [light color]`
 
 Causes the selected tokens to emit light with the specified distances, direction, and color.
 
 Both the `bright light` and `dim light` arguments must be a number. If 0 is passed as the distance, that level of light will be turned off for the tokens.
 
-The `light direction` must be either a number between 0 and 360, or `off`. Passing in a value to this argument can create cones of light, such as from a bullseye lantern.
+The `light angle` must be either a number between 0 and 360, or `off`. Passing in a value to this argument changes the angle of the light that is emitted. For example, 360 would cause light to emit 360 degrees from the token (the default for light), while 90 would create a cone of light.
 
 The `light color` argument is optional, but must be a 6 character HEX color, e.g. `#ff0000`, or `transparent` when passed in.
 
@@ -75,7 +75,7 @@ Sets the aura for the selected tokens.
 
 The `aura to update` argument must be either `aura1` or `aura2`.
 
-The `aura size` must be an integer or decimal greater than 0. Passing in a value of 0 (or a blank value) will turn the specified aura off.
+The `aura size` must be an integer or decimal greater than or equal to 0. Passing in a blank value will turn the aura off.
 
 The `aura color` argument must be a 6 character HEX value or `transparent`.
 
