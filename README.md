@@ -92,3 +92,17 @@ Sets the daylight opacity for the page that players are currently on. This must 
 If dynamic lighting and/or daylight mode are not enabled for the page, this command will turn both on.
 
 The `opacity` argument must be 0 to turn daylight off, 1 for maximum daylight brightness, or a decimal between 0 and 1 for varying levels of daylight.
+
+### AOE
+
+`!miscAoe|[aoeType]|[aoeShape]|[aoeSize]|[aoeName]`
+
+Creates an AOE token. At least one token must be selected when calling this command.
+
+`aoeType` refers to the type of the AOE, such as whether it is comprised of smoke, water, fire, and so on. This must be either `air`, `earth`, `fire`, `lightning`, `smoke`, or `water`.
+
+`aoeShape` refers to one of the typical AOE shapes, and must be either `cone`, `cube`, `line`, or `sphere`.
+
+`aoeSize` must be an integer greater than 0 and must be an increment of 5. If `sphere` is selected as the `aoeShape` the size will refer to the radius, e.g. passing in `10` would create a 10 foot radius sphere. If `line` is selected as the `aoeShape` the size will refer to the width only as the height will default to 5 feet.
+
+`aoeName` is optional, and will create a nameplate for the AOE token. If this is not passed in, the AOE token nameplate will default to the name of the selected token + the `aoeType`.

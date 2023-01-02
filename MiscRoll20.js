@@ -26,7 +26,53 @@ const MiscScripts = (function () {
     );
   }
 
+  const AOE_IMAGES = {
+    Air: {
+      Cone: "https://s3.amazonaws.com/files.d20.io/images/320930467/JJwfzOYT3Hviq53stJ8qHg/thumb.png?1672684835",
+      Cube: "https://s3.amazonaws.com/files.d20.io/images/320930469/hV-0-_FpmccQhs16J-WpXQ/thumb.png?1672684836",
+      Line: "https://s3.amazonaws.com/files.d20.io/images/320930471/-dbS-3gqPwSSkjk2yFfxhg/thumb.png?1672684838",
+      Sphere:
+        "https://s3.amazonaws.com/files.d20.io/images/320930478/19xw4B-AIgFzyIdbAxrRMg/thumb.png?1672684840",
+    },
+    Earth: {
+      Cone: "https://s3.amazonaws.com/files.d20.io/images/320930517/IdVBKQOCpEeE4NBn7Vl0YA/thumb.png?1672684862",
+      Cube: "https://s3.amazonaws.com/files.d20.io/images/320930526/q5_qstSVNCoPOSBqJ24cIw/thumb.png?1672684865",
+      Line: "https://s3.amazonaws.com/files.d20.io/images/320930530/RR2zSLp0ZKVqmlTO_MZTmA/thumb.png?1672684867",
+      Sphere:
+        "https://s3.amazonaws.com/files.d20.io/images/320930532/nWw_xyI5lsokgS-C2M0VVg/thumb.png?1672684868",
+    },
+    Fire: {
+      Cone: "https://s3.amazonaws.com/files.d20.io/images/320930555/_R0KVwaQMxatQuVslHZ7pg/thumb.png?1672684880",
+      Cube: "https://s3.amazonaws.com/files.d20.io/images/320930559/rEA9G8nj8Kro7ijsVlsX1w/thumb.png?1672684881",
+      Line: "https://s3.amazonaws.com/files.d20.io/images/320930562/y_1uT6SjBGt66cn4z7Ewaw/thumb.png?1672684883",
+      Sphere:
+        "https://s3.amazonaws.com/files.d20.io/images/320930564/P5HDPIEwqb-wHQSmJ7VNVg/thumb.png?1672684884",
+    },
+    Lightning: {
+      Cone: "https://s3.amazonaws.com/files.d20.io/images/320930570/sVNXfydntYxkRlkPZ0c--A/thumb.png?1672684889",
+      Cube: "https://s3.amazonaws.com/files.d20.io/images/320930577/rUmx45PRB5WgKMkOGHtuSA/thumb.png?1672684891",
+      Line: "https://s3.amazonaws.com/files.d20.io/images/320930581/Hz2HJ_8Z1ZM_hYIPuldUuQ/thumb.png?1672684892",
+      Sphere:
+        "https://s3.amazonaws.com/files.d20.io/images/320930583/nXt77WZdiMDxHRMBLXuiBg/thumb.png?1672684894",
+    },
+    Smoke: {
+      Cone: "https://s3.amazonaws.com/files.d20.io/images/320930608/UnktFfbj7aom7bpO040qsw/thumb.png?1672684903",
+      Cube: "https://s3.amazonaws.com/files.d20.io/images/320930612/svh5zig13Jb5uE5hVfPy2Q/thumb.png?1672684904",
+      Line: "https://s3.amazonaws.com/files.d20.io/images/320930616/gWcD5ZMAM7Nj1eeP9dqZgg/thumb.png?1672684906",
+      Sphere:
+        "https://s3.amazonaws.com/files.d20.io/images/320930627/CfQd2zUALORG49lBCXhphA/thumb.png?1672684908",
+    },
+    Water: {
+      Cone: "https://s3.amazonaws.com/files.d20.io/images/320930634/1ROH9mxObJfZu_hl7PDmAg/thumb.png?1672684911",
+      Cube: "https://s3.amazonaws.com/files.d20.io/images/320930638/ETwgnqzWR856fhgksaHHZA/thumb.png?1672684913",
+      Line: "https://s3.amazonaws.com/files.d20.io/images/320930639/FVn824sElkJhc13Ahs3m6Q/thumb.png?1672684915",
+      Sphere:
+        "https://s3.amazonaws.com/files.d20.io/images/320930645/m0UrtEEMgTtnXlmRTJsxeA/thumb.png?1672684916",
+    },
+  };
+
   const HEX_COLORS = {
+    Transparent: "transparent",
     Black: "#000000",
     Blue: "#0000ff",
     "--Blue (dark)": "#0000cc",
@@ -86,7 +132,6 @@ const MiscScripts = (function () {
     "--Red (light)": "#ff3333",
     "--Red (lighter)": "#ff6666",
     "--Red (lightest)": "#ff9999",
-    Transparent: "transparent",
     Violet: "#ee82ee",
     "--Violet (dark)": "#e228e2",
     "--Violet (darker)": "#901490",
@@ -160,6 +205,13 @@ const MiscScripts = (function () {
       action:
         "!miscelevation ?{Elevation type|Off|Depth|Height} ?{Elevation amount - must be increments of 5, with a max of 300 for height and 185 for depth} ?{Elevation viewable by|All players|GM}",
       gmOnly: true,
+      istokenaction: true,
+    },
+    {
+      name: "AOE",
+      action:
+        "!miscaoe|?{AoE type|Air|Earth|Fire|Lightning|Smoke|Water}|?{AoE Shape|Cone|Cube|Line|Sphere}|?{AoE size - must be an integer that is an increment of 5}|?{AoE display name (optional)}",
+      gmOnly: false,
       istokenaction: true,
     },
   ];
@@ -419,8 +471,46 @@ const MiscScripts = (function () {
     });
   }
 
-  function registerEventHandlers() {
-    on("chat:message", (message) => {
+  function createAOE(message) {
+    const [, aoeType, aoeShape, aoeSize, aoeName] = message.content.split("|");
+    const parsedSize = parseInt(aoeSize);
+
+    if (parsedSize % 5 !== 0 || !parsedSize) {
+      throw new Error(
+        `<code>${aoeSize}</code> is not a valid size for an AOE. The size entered must be an integer greater than 0 and be an increment of 5.`
+      );
+    }
+
+    const sizeMultiplier = /^sphere$/i.test(aoeType)
+      ? (parsedSize / 5) * 2
+      : parsedSize / 5;
+
+    _.each(message.selected, (selected) => {
+      const token = getObj("graphic", selected._id);
+      const characterId = token.get("represents");
+      const characterControl = getObj("character", characterId).get(
+        "controlledby"
+      );
+
+      const aoe = createObj("graphic", {
+        _pageid: getObj("page", token.get("pageid")).get("id"),
+        imgsrc: AOE_IMAGES[aoeType][aoeShape],
+        name: aoeName || `${token.get("name")} ${aoeType}`,
+        showplayers_name: true,
+        top: token.get("top"),
+        left: token.get("left"),
+        width: 70 * sizeMultiplier,
+        height: /^line$/.test(aoeShape) ? 70 : 70 * sizeMultiplier,
+        layer: "objects",
+        showname: true,
+        controlledby:
+          characterControl || _.pluck(getGMPlayers(), "id").join(","),
+      });
+    });
+  }
+
+  function handleChatInput(message) {
+    try {
       const { content, selected } = message;
 
       if (message.type === "api") {
@@ -430,6 +520,10 @@ const MiscScripts = (function () {
 
         if (/^!miscdancingdragon/i.test(content) && selected) {
           dancingDragonScript(message);
+        }
+
+        if (/^!miscaoe/i.test(content) && selected) {
+          createAOE(message);
         }
 
         if (playerIsGM(message.playerid)) {
@@ -464,7 +558,18 @@ const MiscScripts = (function () {
           }
         }
       }
-    });
+    } catch (error) {
+      sendChat(
+        MISC_DISPLAY_NAME,
+        `/w "${message.who.replace(" (GM)", "")}" ${error.message}`,
+        null,
+        { noarchive: true }
+      );
+    }
+  }
+
+  function registerEventHandlers() {
+    on("chat:message", handleChatInput);
   }
 
   return {
