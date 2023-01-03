@@ -481,7 +481,7 @@ const MiscScripts = (function () {
       );
     }
 
-    const sizeMultiplier = /^sphere$/i.test(aoeType)
+    const sizeMultiplier = /^sphere$/i.test(aoeShape)
       ? (parsedSize / 5) * 2
       : parsedSize / 5;
 
