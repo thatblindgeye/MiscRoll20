@@ -3,27 +3,37 @@ const MiscScripts = (function () {
 
   const MISC_DISPLAY_NAME = "Misc Scripts";
 
-  function getCleanImgsrc(token) {
-    const imgsrc = token.get("imgsrc");
-    const parts = imgsrc.match(
-      /(.*\/images\/.*)(thumb|med|original|max)([^\?]*)(\?[^?]+)?$/
-    );
+  function getCleanImgsrc(selectedTokens) {
+    _.each(selectedTokens, (selectedToken) => {
+      const token = getObj("graphic", selectedToken._id);
+      const name = token.get("name");
+      const imgsrc = token.get("imgsrc");
+      const parts = imgsrc.match(
+        /(.*\/images\/.*)(thumb|med|original|max)([^\?]*)(\?[^?]+)?$/
+      );
 
-    if (parts) {
-      const imgURL =
-        parts[1] +
-        "thumb" +
-        parts[3] +
-        (parts[4] ? parts[4] : `?${Math.round(Math.random() * 9999999)}`);
+      if (parts) {
+        const imgURL =
+          parts[1] +
+          "thumb" +
+          parts[3] +
+          (parts[4] ? parts[4] : `?${Math.round(Math.random() * 9999999)}`);
 
-      return `<div style="padding: 8px; border: 1px solid gray; border-radius: 25px;"><img src="${imgURL}" alt="${token.get(
-        "name"
-      )} token"/><div><code>${imgURL}</code></div></div>`;
-    }
-
-    throw new Error(
-      `The selected token does not have a valid image source. A token's image cannot be the default image, and the selected token cannot be one that was purchased on the Roll20 marketplace.`
-    );
+        sendChat(
+          MISC_DISPLAY_NAME,
+          `/w gm <div style="padding: 8px; border: 1px solid gray; border-radius: 25px;"><img src="${imgURL}" alt="${name} token"/><div><code>${imgURL}</code></div></div>`,
+          null,
+          { noarchive: true }
+        );
+      } else {
+        sendChat(
+          MISC_DISPLAY_NAME,
+          `/w gm ${name} does not have a valid image source. A token's image cannot be the default image, and the selected token cannot be one that was purchased on the Roll20 marketplace.`,
+          null,
+          { noarchive: true }
+        );
+      }
+    });
   }
 
   const AOE_IMAGES = {
@@ -192,7 +202,7 @@ const MiscScripts = (function () {
       name: "Set-Aura",
       action: `!miscsetaura ?{Aura to update|Aura 1,aura1|Aura 2,aura2} ?{Size of aura - leave blank to turn off} ?{Color of aura${createColorQuery()}} ?{Shape of aura|Circle,false|Square,true} ?{Aura is visible to players|True|False}`,
       gmOnly: true,
-      istokenaction: false,
+      istokenaction: true,
     },
     {
       name: "Set-Daylight",
@@ -210,7 +220,7 @@ const MiscScripts = (function () {
     {
       name: "AOE",
       action:
-        "!miscaoe|?{AoE type|Air|Earth|Fire|Lightning|Smoke|Water}|?{AoE Shape|Cone|Cube|Line|Sphere}|?{AoE size - must be an integer that is an increment of 5}|?{AoE display name (optional)}",
+        "!miscaoe|?{AoE type|Air|Earth|Fire|Lightning|Smoke|Water}|?{AoE shape|Cone|Cube|Line|Sphere}|?{AoE size - must be an integer that is an increment of 5}|?{AoE display name (optional)}",
       gmOnly: false,
       istokenaction: true,
     },
@@ -273,20 +283,20 @@ const MiscScripts = (function () {
     Campaign().set("turnorder", JSON.stringify(initiativePasses));
   }
 
-  function massHitpointsScript(message) {
-    let [, hpChange, tokenBar] = message.content.split(" ");
+  function massHitpointsScript(content, selectedTokens) {
+    let [, hpChange, tokenBar] = content.split(" ");
     hpChange = parseInt(hpChange);
 
-    _.each(message.selected, (selected) => {
-      const token = getObj("graphic", selected._id);
+    _.each(selectedTokens, (selectedToken) => {
+      const token = getObj("graphic", selectedToken._id);
       const currentHP = parseInt(token.get(`${tokenBar}_value`));
 
       token.set(`${tokenBar}_value`, currentHP + hpChange);
-      BarThresholds.runThresholds(tokenBar, selected, currentHP);
+      BarThresholds.runThresholds(tokenBar, selectedToken, currentHP);
     });
   }
 
-  function lightScript(message) {
+  function lightScript(content, selectedTokens) {
     const calculateDistance = (distance, defaultDistance) => {
       const parsedDistance = parseFloat(distance);
 
@@ -296,7 +306,7 @@ const MiscScripts = (function () {
     };
 
     let [, brightDistance, dimDistance, lightAngle, lightColor] = _.map(
-      message.content.split(" "),
+      content.split(" "),
       (lightArg, index) => {
         if (index === 1 || index === 2) {
           return calculateDistance(lightArg, 0);
@@ -339,16 +349,16 @@ const MiscScripts = (function () {
       tokenLight.lightColor = lightColor;
     }
 
-    _.each(message.selected, (selected) => {
-      const token = getObj("graphic", selected._id);
+    _.each(selectedTokens, (selectedToken) => {
+      const token = getObj("graphic", selectedToken._id);
 
       token.set(tokenLight);
     });
   }
 
   function getImgsrcScript(selectedTokens) {
-    const imgsrcList = _.map(selectedTokens, (selected) => {
-      const token = getObj("graphic", selected._id);
+    const imgsrcList = _.map(selectedTokens, (selectedToken) => {
+      const token = getObj("graphic", selectedToken._id);
       const tokenImg = token.get("imgsrc");
 
       return `<div style="border: 1px solid gray; padding: 2px;"><div style="width: 70px; height: 70px;"><img src="${tokenImg}" alt="Token image" /></div>${getCleanImgsrc(
@@ -361,9 +371,9 @@ const MiscScripts = (function () {
     });
   }
 
-  function dancingDragonScript(message) {
-    const stance = message.content.split(" ")[1].replace("-", " ");
-    const token = getObj("graphic", message.selected[0]._id);
+  function dancingDragonScript(content, selectedTokens) {
+    const stance = content.split(" ")[1].replace("-", " ");
+    const token = getObj("graphic", selectedTokens[0]._id);
 
     if (token.get("tooltip").includes(stance)) {
       sendChat("", `/em ${token.get("name")} remains in the ${stance}!`);
@@ -384,13 +394,13 @@ const MiscScripts = (function () {
     }
   }
 
-  function setAuraScript(message) {
-    const [, aura, size, color, isSquare, isVisible] = message.content
+  function setAuraScript(content, selectedTokens) {
+    const [, aura, size, color, isSquare, isVisible] = content
       .toLowerCase()
       .split(" ");
 
-    _.each(message.selected, (selected) => {
-      const token = getObj("graphic", selected._id);
+    _.each(selectedTokens, (selectedToken) => {
+      const token = getObj("graphic", selectedToken._id);
 
       token.set({
         [`${aura}_radius`]: size >= 0 ? size : "",
@@ -401,7 +411,7 @@ const MiscScripts = (function () {
     });
   }
 
-  function setDaylightScript(message) {
+  function setDaylightScript(content) {
     const page = getObj("page", Campaign().get("playerpageid"));
 
     if (!page.get("dynamic_lighting_enabled")) {
@@ -412,18 +422,18 @@ const MiscScripts = (function () {
       page.set("daylight_mode_enabled", true);
     }
 
-    const lightOpacity = parseFloat(message.content.split(" ")[1] || "1");
+    const lightOpacity = parseFloat(content.split(" ")[1] || "1");
 
     page.set("daylightModeOpacity", lightOpacity);
     page.set("force_lighting_refresh", true);
   }
 
-  function setElevationScript(message) {
-    const [, elevationType, amount, viewableBy] = message.content.split(" ");
+  function setElevationScript(content, selectedTokens) {
+    const [, elevationType, amount, viewableBy] = content.split(" ");
 
     if (elevationType === "Off" || !amount) {
-      _.each(message.selected, (selected) => {
-        const token = getObj("graphic", selected._id);
+      _.each(selectedTokens, (selectedToken) => {
+        const token = getObj("graphic", selectedToken._id);
         const tokenMarkers = token.get("statusmarkers").split(/\s*,\s*/g);
         const markersWithoutElevation = _.filter(
           tokenMarkers,
@@ -452,8 +462,8 @@ const MiscScripts = (function () {
       });
     }
 
-    _.each(message.selected, (selected) => {
-      const token = getObj("graphic", selected._id);
+    _.each(selectedTokens, (selectedToken) => {
+      const token = getObj("graphic", selectedToken._id);
       const tokenMarkers = _.filter(
         token.get("statusmarkers").split(/\s*,\s*/g),
         (marker) => !/^(depth|height)_\d*/i.test(marker)
@@ -471,8 +481,8 @@ const MiscScripts = (function () {
     });
   }
 
-  function createAOE(message) {
-    const [, aoeType, aoeShape, aoeSize, aoeName] = message.content.split("|");
+  function createAOE(content, selectedTokens) {
+    const [, aoeType, aoeShape, aoeSize, aoeName] = content.split("|");
     const parsedSize = parseInt(aoeSize);
 
     if (parsedSize % 5 !== 0 || !parsedSize) {
@@ -485,8 +495,8 @@ const MiscScripts = (function () {
       ? (parsedSize / 5) * 2
       : parsedSize / 5;
 
-    _.each(message.selected, (selected) => {
-      const token = getObj("graphic", selected._id);
+    _.each(selectedTokens, (selectedToken) => {
+      const token = getObj("graphic", selectedToken._id);
       const characterId = token.get("represents");
       const characterControl = getObj("character", characterId).get(
         "controlledby"
@@ -500,7 +510,7 @@ const MiscScripts = (function () {
         top: token.get("top"),
         left: token.get("left"),
         width: 70 * sizeMultiplier,
-        height: /^line$/.test(aoeShape) ? 70 : 70 * sizeMultiplier,
+        height: /^line$/i.test(aoeShape) ? 70 : 70 * sizeMultiplier,
         layer: "objects",
         showname: true,
         controlledby:
@@ -515,46 +525,39 @@ const MiscScripts = (function () {
 
       if (message.type === "api") {
         if (/^!misclight/i.test(content) && selected) {
-          lightScript(message);
+          lightScript(content, selected);
         }
 
         if (/^!miscdancingdragon/i.test(content) && selected) {
-          dancingDragonScript(message);
+          dancingDragonScript(content, selected);
         }
 
         if (/^!miscaoe/i.test(content) && selected) {
-          createAOE(message);
+          createAOE(content, selected);
         }
 
         if (playerIsGM(message.playerid)) {
           if (/^!getcleanimgsrc/i.test(content) && selected.length) {
-            _.each(selected, (selectedItem) => {
-              const token = getObj("graphic", selectedItem._id);
-              sendChat(MISC_DISPLAY_NAME, `/w gm ${getCleanImgsrc(token)}`);
-            });
+            getCleanImgsrc(selected);
           }
 
           if (/^!miscmasshp/i.test(content) && selected.length) {
-            massHitpointsScript(message);
+            massHitpointsScript(content, selected);
           }
           if (/^!miscinitpasses/i.test(content)) {
             initiativePassScript();
           }
 
-          if (/^!miscgetimgsrc/i.test(content) && selected.length) {
-            getImgsrcScript(selected);
-          }
-
           if (/^!miscsetaura/i.test(content) && selected.length) {
-            setAuraScript(message);
+            setAuraScript(content, selected);
           }
 
           if (/^!miscsetdaylight/i.test(content)) {
-            setDaylightScript(message);
+            setDaylightScript(content);
           }
 
           if (/^!miscelevation/i.test(content)) {
-            setElevationScript(message);
+            setElevationScript(content, selected);
           }
         }
       }
