@@ -106,3 +106,23 @@ Creates an AOE token. At least one token must be selected when calling this comm
 `aoeSize` must be an integer greater than 0 and must be an increment of 5. If `sphere` is selected as the `aoeShape` the size will refer to the radius, e.g. passing in `10` would create a 10 foot radius sphere. If `line` is selected as the `aoeShape` the size will refer to the width only as the height will default to 5 feet.
 
 `aoeName` is optional, and will create a nameplate for the AOE token. If this is not passed in, the AOE token nameplate will default to the name of the selected token + the `aoeType`.
+
+### Generate badge
+
+`!miscbadge|[jurisdiction]`
+
+Generates a badge number for emergency/law personnel. The `jurisidction` argument should be a string of the relevant town/city, region, or nation. For example, `RC` would be the jurisdiction for Republic City.
+
+### Geberate license plate
+
+`!misclicenseplate|[vehicle type]|[nation of origin]`
+
+Generates a license plate for the specified vehicle type and nation.
+
+The `vehicle type` argument must be one of the following (case sensitive):
+
+- `passenger`
+- `multipassenger`
+- `freight`
+- `specialized`
+- `emergency`
