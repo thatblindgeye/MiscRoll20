@@ -276,6 +276,13 @@ const MiscScripts = (function () {
     });
   }
 
+  function getSelectedObject(selectedToken) {
+    const token = getObj('graphic', selectedToken._id);
+    const tokenRepresentsId = token.get('represents');
+
+    return { character: getObj('character', tokenRepresentsId), token };
+  }
+
   function initiativePassScript() {
     const currentTurnorder =
       Campaign().get('turnorder') === ''
@@ -366,21 +373,6 @@ const MiscScripts = (function () {
       const token = getObj('graphic', selectedToken._id);
 
       token.set(tokenLight);
-    });
-  }
-
-  function getImgsrcScript(selectedTokens) {
-    const imgsrcList = _.map(selectedTokens, (selectedToken) => {
-      const token = getObj('graphic', selectedToken._id);
-      const tokenImg = token.get('imgsrc');
-
-      return `<div style="border: 1px solid gray; padding: 2px;"><div style="width: 70px; height: 70px;"><img src="${tokenImg}" alt="Token image" /></div>${getCleanImgsrc(
-        tokenImg
-      )}</div>`;
-    }).join('');
-
-    sendChat(MISC_DISPLAY_NAME, `/w gm ${imgsrcList}`, null, {
-      noarchive: true,
     });
   }
 
@@ -509,11 +501,8 @@ const MiscScripts = (function () {
       : parsedSize / 5;
 
     _.each(selectedTokens, (selectedToken) => {
-      const token = getObj('graphic', selectedToken._id);
-      const characterId = token.get('represents');
-      const characterControl = getObj('character', characterId).get(
-        'controlledby'
-      );
+      const { character, token } = getSelectedObject(selectedToken);
+      const characterControl = character.get('controlledby');
 
       const aoe = createObj('graphic', {
         _pageid: getObj('page', token.get('pageid')).get('id'),
@@ -592,6 +581,52 @@ const MiscScripts = (function () {
     );
   }
 
+  function hitDieScript(content, selected) {
+    const [, hitDieToExpend] = content.split(' ');
+    const [hitDieAmount, hitDieType] = _.map(
+      hitDieToExpend.split('d'),
+      (hitDieItem) => parseInt(hitDieItem)
+    );
+
+    if (isNaN(hitDieAmount)) {
+      throw new Error(
+        'The amount of hit die to expend must be an integer larger than 0.'
+      );
+    }
+
+    const { character } = getSelectedObject(selected[0]);
+    const characterName = character.get('name');
+    const characterConMod = getAttrByName(character.id, 'constitution_mod');
+    const hitDieAttrName = `hd_d${hitDieType}`;
+    const currentHitDie = getAttrByName(character.id, hitDieAttrName);
+    if (isNaN(parseInt(currentHitDie))) {
+      throw new Error(
+        `${characterName} does not have any levels in a class that use d${hitDieType} hit dice.`
+      );
+    }
+
+    const newHitDieAmount = currentHitDie - hitDieAmount;
+    if (newHitDieAmount < 0) {
+      throw new Error(
+        `Cannot expend ${hitDieAmount}d${hitDieType} hit dice. ${characterName} only has ${currentHitDie}d${hitDieType} available to expend.`
+      );
+    }
+
+    setAttrs(character.id, {
+      [hitDieAttrName]: currentHitDie - hitDieAmount,
+    });
+    sendChat(
+      MISC_DISPLAY_NAME,
+      `&{template:5e-shaped} {{title=${hitDieAmount}d${hitDieType} Hit Dice for ${characterName}}} {{roll1=[[${hitDieAmount}d${hitDieType}r<${
+        hitDieType / 2
+      } + ${
+        hitDieAmount * (characterConMod < 0 ? 0 : characterConMod)
+      }[con]]]}} {{Remaining d${hitDieType} hit die=${newHitDieAmount}}}`,
+      null,
+      { noarchive: true }
+    );
+  }
+
   function handleChatInput(message) {
     try {
       const { content, selected, type } = message;
@@ -607,6 +642,10 @@ const MiscScripts = (function () {
 
         if (/^!miscaoe/i.test(content) && selected) {
           createAOEScript(content, selected);
+        }
+
+        if (/^!mischitdie/i.test(content) && selected) {
+          hitDieScript(content, selected);
         }
 
         if (playerIsGM(message.playerid)) {
