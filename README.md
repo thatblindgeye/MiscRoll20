@@ -113,7 +113,7 @@ Creates an AOE token. At least one token must be selected when calling this comm
 
 Generates a badge number for emergency/law personnel. The `jurisidction` argument should be a string of the relevant town/city, region, or nation. For example, `RC` would be the jurisdiction for Republic City.
 
-### Geberate license plate
+### Generate license plate
 
 `!misclicenseplate|[vehicle type]|[nation of origin]`
 
@@ -126,3 +126,25 @@ The `vehicle type` argument must be one of the following (case sensitive):
 - `freight`
 - `specialized`
 - `emergency`
+
+### Get character attributes
+
+`MiscScripts.getCharacterAttr(characterId, attrToGet)`
+
+Calls Roll20's `getAttrByName` method internally.
+
+`characterId` must be the `id` property of a character object.
+
+`attrToGet` can be either a string or an array. When a string is passed in, the attribute's `current` value will be returned.
+
+An array can contain either strings or objects in any combination. A string array item will return the attribute's `current` value. An object can contain the following properties:
+
+- `name` - string (**required**): The name of the attribute.
+- `parseInt` - boolean: Whether the retrieved value should be passed into the `parseInt` method before being returned.
+- `value` "current" | "max": the value type to be returned. By default the "current" value will be returned.
+
+Some examples of valid calls with the helper:
+
+- `MiscScripts.getCharacterAttr("hp")`
+- `MiscScripts.getCharacterAttr(["hp", "temp_hp"])`
+- `MiscScripts.getCharacterAttr([{name: "hp", parseInt: true, value: "max"}, "temp_hp"])`

@@ -283,6 +283,26 @@ const MiscScripts = (function () {
     return { character: getObj('character', tokenRepresentsId), token };
   }
 
+  function getCharacterAttr(characterId, attrToGet) {
+    if (typeof attrToGet === 'string') {
+      return getAttrByName(characterId, attrToGet);
+    }
+
+    return _.map(attrToGet, (attr) => {
+      if (typeof attr === 'object') {
+        const attrValue = getAttrByName(
+          characterId,
+          attr.name,
+          attr.value || 'current'
+        );
+
+        return attr.parseInt ? parseInt(attrValue) : attrValue;
+      }
+
+      return getAttrByName(characterId, attr);
+    });
+  }
+
   function initiativePassScript() {
     const currentTurnorder =
       Campaign().get('turnorder') === ''
@@ -308,10 +328,32 @@ const MiscScripts = (function () {
     hpChange = parseInt(hpChange);
 
     _.each(selectedTokens, (selectedToken) => {
-      const token = getObj('graphic', selectedToken._id);
-      const currentHP = parseInt(token.get(`${tokenBar}_value`));
+      const { character } = getSelectedObject(selectedToken);
+      const [currentHP, maxHP, maxReducedHP, tempHP] = getCharacterAttr(
+        character.id,
+        [
+          { name: 'hp', parseInt: true },
+          { name: 'hp', parseInt: true, value: 'max' },
+          { name: 'hp_max_reduced', parseInt: true },
+          { name: 'temp_hp', parseInt: true },
+        ]
+      );
 
-      token.set(`${tokenBar}_value`, currentHP + hpChange);
+      if (hpChange > 0) {
+        const trueMaxHP = maxHP - (maxReducedHP || 0);
+        const newHP = currentHP + hpChange;
+        setAttrs(character.id, {
+          hp: newHP > trueMaxHP ? trueMaxHP : newHP,
+        });
+      }
+
+      if (hpChange < 0) {
+        setAttrs(character.id, {
+          hp: hpChange + tempHP < 0 ? currentHP + hpChange + tempHP : currentHP,
+          temp_hp: hpChange + tempHP > 0 ? tempHP + hpChange : 0,
+        });
+      }
+
       BarThresholds.runThresholds(tokenBar, selectedToken, currentHP);
     });
   }
@@ -581,228 +623,6 @@ const MiscScripts = (function () {
     );
   }
 
-  function checkIsInteger(stringToParse, type) {
-    const parsedString = parseInt(stringToParse);
-
-    if (type === 'positive') {
-      return !isNaN(parsedString) && parsedString > 0;
-    }
-    if (type === 'negative') {
-      return !isNaN(parsedString) && parsedString < 0;
-    }
-
-    return !isNaN(parsedString);
-  }
-
-  function hitDieScript(content, selected) {
-    const [, hitDieToExpend] = content.split(' ');
-    const [hitDieAmount, hitDieType] = _.map(
-      hitDieToExpend.split('d'),
-      (hitDieItem) => parseInt(hitDieItem)
-    );
-
-    if (!hitDieAmount) {
-      throw new Error(
-        'The amount of hit die to expend must be an integer larger than 0.'
-      );
-    }
-
-    const { character } = getSelectedObject(selected[0]);
-    const characterName = character.get('name');
-    const characterConMod = getAttrByName(character.id, 'constitution_mod');
-    const hitDieAttrName = `hd_d${hitDieType}`;
-    const currentHitDie = getAttrByName(character.id, hitDieAttrName);
-    if (isNaN(parseInt(currentHitDie))) {
-      throw new Error(
-        `${characterName} does not have any levels in a class that use d${hitDieType} hit dice.`
-      );
-    }
-
-    const newHitDieAmount = currentHitDie - hitDieAmount;
-    if (newHitDieAmount < 0) {
-      throw new Error(
-        `Cannot expend ${hitDieAmount}d${hitDieType} hit dice. ${characterName} only has ${currentHitDie}d${hitDieType} available to expend.`
-      );
-    }
-
-    setAttrs(character.id, {
-      [hitDieAttrName]: currentHitDie - hitDieAmount,
-    });
-    sendChat(
-      MISC_DISPLAY_NAME,
-      `&{template:5e-shaped} {{title=${hitDieAmount}d${hitDieType} Hit Dice for ${characterName}}} {{roll1=[[${hitDieAmount}d${hitDieType}r<${
-        hitDieType / 2
-      } + ${
-        hitDieAmount * (characterConMod < 0 ? 0 : characterConMod)
-      }[con]]]}} {{Remaining d${hitDieType} hit die=${newHitDieAmount}}}`,
-      null,
-      { noarchive: true }
-    );
-  }
-
-  function gunslingerScript(content, selected) {
-    const [, command, weaponId, ...args] = content.split(' ');
-    const { character } = getSelectedObject(selected[0]);
-    const characterName = character.get('name');
-    const getCharacterAttr = (attrToGet, valueType = 'current') =>
-      getAttrByName(character.id, attrToGet, valueType);
-
-    const weaponAttrString = `repeating_offense_${weaponId}_`;
-    const weaponName = getCharacterAttr(`${weaponAttrString}name`);
-    const weaponUses = parseInt(getCharacterAttr(`${weaponAttrString}uses`));
-    const weaponMaxUses = parseInt(
-      getCharacterAttr(`${weaponAttrString}uses`, 'max')
-    );
-    const getAmmoAttrs = (ammoId) => {
-      const ammoAttrString = `repeating_ammo_${ammoId}_`;
-      const ammoUsesStr = `${ammoAttrString}uses`;
-      const ammoUsesVal = parseInt(getCharacterAttr(ammoUsesStr));
-      const ammoUsesName = getCharacterAttr(`${ammoAttrString}name`);
-
-      if (isNaN(ammoUsesVal)) {
-        throw new Error(`${ammoUsesStr} is an invalid ammo ID.`);
-      }
-
-      return {
-        ammoUsesStr,
-        ammoUsesVal,
-        ammoUsesName,
-      };
-    };
-
-    const attrsToSet = {};
-    switch (command) {
-      case 'load':
-        const amountToReload = parseInt(args[0]);
-        if (isNaN(amountToReload) || amountToReload === 0) {
-          throw new Error(
-            `The amount to reload must be an integer greater than 0, or the amount to unload must be an integer less than 0.`
-          );
-        }
-
-        const isPositiveAmount = amountToReload > 0;
-        if (weaponUses === weaponMaxUses && isPositiveAmount) {
-          throw new Error(
-            `${weaponName} is fully loaded and cannot be reloaded any further.`
-          );
-        }
-        if (weaponUses === 0 && !isPositiveAmount) {
-          throw new Error(
-            `${weaponName} is empty and cannot be unloaded any further.`
-          );
-        }
-        if (isPositiveAmount && weaponUses + amountToReload > weaponMaxUses) {
-          throw new Error(
-            `Cannot reload ${amountToReload} ammunition. The ${weaponName} is currently loaded with ${weaponUses} ammunition and has a maximum capacity of ${weaponMaxUses}.`
-          );
-        }
-        if (!isPositiveAmount && weaponUses + amountToReload < 0) {
-          throw new Error(
-            `Cannot unload ${
-              amountToReload * -1
-            } ammunition. The ${weaponName} is currently loaded with ${weaponUses} ammunition and cannot be unloaded to less than 0 ammunition.`
-          );
-        }
-
-        const {
-          ammoUsesStr: bulkAmmoUsesStr,
-          ammoUsesVal: bulkAmmoUsesVal,
-          ammoUsesName: bulkAmmoUsesName,
-        } = getAmmoAttrs(args[1]);
-        if (isPositiveAmount && bulkAmmoUsesVal < amountToReload) {
-          throw new Error(
-            `Unable to reload ${amountToReload} ${bulkAmmoUsesName} as there are only ${bulkAmmoUsesVal} available.`
-          );
-        }
-        attrsToSet[`${weaponAttrString}uses`] = weaponUses + amountToReload;
-        attrsToSet[bulkAmmoUsesStr] = bulkAmmoUsesVal - amountToReload;
-
-        const {
-          ammoUsesStr: weaponAmmoUsesReloadStr,
-          ammoUsesVal: weaponAmmoUsesReloadVal,
-          ammoUsesName: weaponAmmoUsesReloadName,
-        } = args[2] ? getAmmoAttrs(args[2]) : {};
-        if (!isPositiveAmount && weaponAmmoUsesReloadVal === 0) {
-          throw new Error(
-            `Unable to unload ${
-              amountToReload * -1
-            } ${weaponAmmoUsesReloadName} as there are currently none loaded.`
-          );
-        }
-        if (weaponAmmoUsesReloadVal !== undefined) {
-          attrsToSet[weaponAmmoUsesReloadStr] =
-            weaponAmmoUsesReloadVal + amountToReload;
-        }
-
-        setAttrs(character.id, attrsToSet);
-        sendChat(
-          MISC_DISPLAY_NAME,
-          `/w "${characterName}" ${
-            isPositiveAmount
-              ? `reloaded ${amountToReload} ${bulkAmmoUsesName} into`
-              : `unloaded ${amountToReload * -1} ${bulkAmmoUsesName} from`
-          } the ${weaponName}`,
-          null,
-          { noarchive: true }
-        );
-        break;
-
-      case 'shoot':
-        const amountToShoot = parseInt(args[0]);
-
-        if (isNaN(amountToShoot) || amountToShoot < 1) {
-          throw new Error(
-            `The amount of ammunition to shoot must be an integer greater than 0.`
-          );
-        }
-        attrsToSet[`${weaponAttrString}uses`] = weaponUses - amountToShoot;
-
-        const {
-          ammoUsesStr: weaponAmmoUsesShootStr,
-          ammoUsesVal: weaponAmmoUsesShootVal,
-          ammoUsesName: weaponAmmoUsesShootName,
-        } = args[1] ? getAmmoAttrs(args[1]) : {};
-
-        if (amountToShoot > weaponAmmoUsesShootVal) {
-          throw new Error(
-            `Cannot shoot ${amountToShoot} ${weaponAmmoUsesShootName}. ${weaponName} only has ${weaponAmmoUsesShootVal} loaded.`
-          );
-        }
-        if (weaponAmmoUsesShootVal !== undefined) {
-          attrsToSet[weaponAmmoUsesShootStr] =
-            weaponAmmoUsesShootVal - amountToShoot;
-        }
-
-        setAttrs(character.id, attrsToSet);
-        break;
-      case 'status':
-        const weaponAmmoStatusArray = args.length
-          ? _.map(args, (arg) => {
-              const { ammoUsesVal, ammoUsesName } = getAmmoAttrs(arg);
-
-              return `<li>${ammoUsesVal}x ${ammoUsesName}</li>`;
-            })
-          : [];
-        const weaponAmmoStatuString = weaponAmmoStatusArray.length
-          ? ` The following ammo types are currently loaded: <ul>${weaponAmmoStatusArray.join(
-              ''
-            )}</ul>`
-          : '.';
-
-        sendChat(
-          MISC_DISPLAY_NAME,
-          `/w "${characterName}" ${characterName} currently has ${weaponUses} ammo loaded in the ${weaponName}, which has a maximum capacity of ${weaponMaxUses}.${weaponAmmoStatuString}`,
-          null,
-          { noarchive: true }
-        );
-        break;
-      default:
-        throw new Error(
-          `${command} is not a valid command for the gunslinger script. The command must be either reload, shoot, or status.`
-        );
-    }
-  }
-
   function handleChatInput(message) {
     try {
       const { content, selected, type } = message;
@@ -818,14 +638,6 @@ const MiscScripts = (function () {
 
         if (/^!miscaoe/i.test(content) && selected) {
           createAOEScript(content, selected);
-        }
-
-        if (/^!mischitdie/i.test(content) && selected) {
-          hitDieScript(content, selected);
-        }
-
-        if (/^!miscgunslinger/i.test(content) && selected) {
-          gunslingerScript(content, selected);
         }
 
         if (playerIsGM(message.playerid)) {
@@ -848,7 +660,7 @@ const MiscScripts = (function () {
             setDaylightScript(content);
           }
 
-          if (/^!miscelevation/i.test(content)) {
+          if (/^!miscelevation/i.test(content) && selected.length) {
             setElevationScript(content, selected);
           }
 
@@ -878,6 +690,7 @@ const MiscScripts = (function () {
   return {
     createMiscMacros,
     registerEventHandlers,
+    getCharacterAttr,
   };
 })();
 
