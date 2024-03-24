@@ -36,6 +36,15 @@ const MiscScripts = (function () {
     });
   }
 
+  function getGMPlayers() {
+    return _.filter(
+      findObjs({
+        _type: 'player',
+      }),
+      (player) => playerIsGM(player.get('_id'))
+    );
+  }
+
   const AOE_IMAGES = {
     Air: {
       Cone: 'https://s3.amazonaws.com/files.d20.io/images/320930467/JJwfzOYT3Hviq53stJ8qHg/thumb.png?1672684835',
@@ -192,13 +201,6 @@ const MiscScripts = (function () {
       istokenaction: true,
     },
     {
-      name: 'Dancing-Dragon',
-      action:
-        '!miscdancingdragon ?{Stance to assume|High Stance,High-Stance|Low Stance,Low-Stance|Power Stance,Power-Stance|Off}',
-      gmOnly: false,
-      istokenaction: false,
-    },
-    {
       name: 'Set-Aura',
       action: `!miscsetaura ?{Aura to update|Aura 1,aura1|Aura 2,aura2} ?{Size of aura - leave blank to turn off} ?{Color of aura${createColorQuery()}} ?{Shape of aura|Circle,false|Square,true} ?{Aura is visible to players|True|False}`,
       gmOnly: true,
@@ -328,33 +330,40 @@ const MiscScripts = (function () {
     hpChange = parseInt(hpChange);
 
     _.each(selectedTokens, (selectedToken) => {
-      const { character } = getSelectedObject(selectedToken);
-      const [currentHP, maxHP, maxReducedHP, tempHP] = getCharacterAttr(
-        character.id,
-        [
-          { name: 'hp', parseInt: true },
-          { name: 'hp', parseInt: true, value: 'max' },
-          { name: 'hp_max_reduced', parseInt: true },
-          { name: 'temp_hp', parseInt: true },
-        ]
-      );
+      const { character, token } = getSelectedObject(selectedToken);
+      if (!character) {
+        const bar1Value = parseInt(token.get('bar1_value'));
+        token.set({ bar1_value: bar1Value + hpChange });
+        BarThresholds.runThresholds(tokenBar, selectedToken, bar1Value);
+      } else {
+        const [currentHP, maxHP, maxReducedHP, tempHP] = getCharacterAttr(
+          character.id,
+          [
+            { name: 'hp', parseInt: true },
+            { name: 'hp', parseInt: true, value: 'max' },
+            { name: 'hp_max_reduced', parseInt: true },
+            { name: 'temp_hp', parseInt: true },
+          ]
+        );
 
-      if (hpChange > 0) {
-        const trueMaxHP = maxHP - (maxReducedHP || 0);
-        const newHP = currentHP + hpChange;
-        setAttrs(character.id, {
-          hp: newHP > trueMaxHP ? trueMaxHP : newHP,
-        });
+        if (hpChange > 0) {
+          const trueMaxHP = maxHP - (maxReducedHP || 0);
+          const newHP = currentHP + hpChange;
+          setAttrs(character.id, {
+            hp: newHP > trueMaxHP ? trueMaxHP : newHP,
+          });
+        }
+
+        if (hpChange < 0) {
+          setAttrs(character.id, {
+            hp:
+              hpChange + tempHP < 0 ? currentHP + hpChange + tempHP : currentHP,
+            temp_hp: hpChange + tempHP > 0 ? tempHP + hpChange : 0,
+          });
+        }
+
+        BarThresholds.runThresholds(tokenBar, selectedToken, currentHP);
       }
-
-      if (hpChange < 0) {
-        setAttrs(character.id, {
-          hp: hpChange + tempHP < 0 ? currentHP + hpChange + tempHP : currentHP,
-          temp_hp: hpChange + tempHP > 0 ? tempHP + hpChange : 0,
-        });
-      }
-
-      BarThresholds.runThresholds(tokenBar, selectedToken, currentHP);
     });
   }
 
@@ -478,7 +487,7 @@ const MiscScripts = (function () {
   function setElevationScript(content, selectedTokens) {
     const [, elevationType, amount, viewableBy] = content.split(' ');
 
-    if (elevationType === 'Off' || !amount) {
+    if (/off/i.test(elevationType) || !amount) {
       _.each(selectedTokens, (selectedToken) => {
         const token = getObj('graphic', selectedToken._id);
         const tokenMarkers = token.get('statusmarkers').split(/\s*,\s*/g);
