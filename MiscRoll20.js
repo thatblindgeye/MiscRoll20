@@ -636,50 +636,53 @@ const MiscScripts = (function () {
     try {
       const { content, selected, type } = message;
 
-      if (type === 'api') {
-        if (/^!misclight/i.test(content) && selected) {
-          lightScript(content, selected);
+      if (type !== 'api') {
+        return;
+      }
+
+      const areTokensSelected = selected && selected.length;
+      if (/^!misclight/i.test(content) && areTokensSelected) {
+        lightScript(content, selected);
+      }
+
+      if (/^!miscdancingdragon/i.test(content) && areTokensSelected) {
+        dancingDragonScript(content, selected);
+      }
+
+      if (/^!miscaoe/i.test(content) && areTokensSelected) {
+        createAOEScript(content, selected);
+      }
+
+      if (playerIsGM(message.playerid)) {
+        if (/^!getcleanimgsrc/i.test(content) && areTokensSelected) {
+          getCleanImgsrc(selected);
         }
 
-        if (/^!miscdancingdragon/i.test(content) && selected) {
-          dancingDragonScript(content, selected);
+        if (/^!miscmasshp/i.test(content) && areTokensSelected) {
+          massHitpointsScript(content, selected);
+        }
+        if (/^!miscinitpasses/i.test(content)) {
+          initiativePassScript();
         }
 
-        if (/^!miscaoe/i.test(content) && selected) {
-          createAOEScript(content, selected);
+        if (/^!miscsetaura/i.test(content) && areTokensSelected) {
+          setAuraScript(content, selected);
         }
 
-        if (playerIsGM(message.playerid)) {
-          if (/^!getcleanimgsrc/i.test(content) && selected.length) {
-            getCleanImgsrc(selected);
-          }
+        if (/^!miscsetdaylight/i.test(content)) {
+          setDaylightScript(content);
+        }
 
-          if (/^!miscmasshp/i.test(content) && selected.length) {
-            massHitpointsScript(content, selected);
-          }
-          if (/^!miscinitpasses/i.test(content)) {
-            initiativePassScript();
-          }
+        if (/^!miscelevation/i.test(content) && areTokensSelected) {
+          setElevationScript(content, selected);
+        }
 
-          if (/^!miscsetaura/i.test(content) && selected.length) {
-            setAuraScript(content, selected);
-          }
+        if (/^!miscbadge/i.test(content)) {
+          generateBadgeScript(content);
+        }
 
-          if (/^!miscsetdaylight/i.test(content)) {
-            setDaylightScript(content);
-          }
-
-          if (/^!miscelevation/i.test(content) && selected.length) {
-            setElevationScript(content, selected);
-          }
-
-          if (/^!miscbadge/i.test(content)) {
-            generateBadgeScript(content);
-          }
-
-          if (/^!misclicenseplate/i.test(content)) {
-            generateLicensePlateScript(content);
-          }
+        if (/^!misclicenseplate/i.test(content)) {
+          generateLicensePlateScript(content);
         }
       }
     } catch (error) {
